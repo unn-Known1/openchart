@@ -1,141 +1,189 @@
 import requests
-import json
 import pandas as pd
-from datetime import datetime
 import time
 from .utils import process_historical_data
 
+
 class NSEData:
+    """NSE India charting data API client."""
+
+    # Valid segments for symbol search
+    SEGMENTS = {
+        'IDX': 'Index',      # Indices like NIFTY 50, NIFTY BANK
+        'EQ': 'Equity',      # Equities like RELIANCE, TCS
+        'FO': 'FO'           # Futures & Options
+    }
+
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'Connection': 'keep-alive',
-            'Cache-Control': 'max-age=0',
-            'DNT': '1',
-            'Upgrade-Insecure-Requests': '1',
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Content-Type': 'application/json',
-            'Sec-Fetch-User': '?1',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-Mode': 'navigate'
+            'Origin': 'https://charting.nseindia.com',
+            'Referer': 'https://charting.nseindia.com/'
         })
-        self.nse_url = "https://charting.nseindia.com/Charts/GetEQMasters"
-        self.nfo_url = "https://charting.nseindia.com/Charts/GetFOMasters"
-        self.historical_url = "https://charting.nseindia.com//Charts/symbolhistoricaldata/"
-        self.nse_data = None
-        self.nfo_data = None
+        self.search_url = "https://charting.nseindia.com/v1/exchanges/symbolsDynamic"
+        self.historical_url = "https://charting.nseindia.com/v1/charts/symbolHistoricalData"
+        self._cookies_set = False
 
-    def download(self):
-        """Download NSE and NFO master data."""
-        self.nse_data = self._fetch_master_data(self.nse_url)
-        self.nfo_data = self._fetch_master_data(self.nfo_url)
-        print(f"NSE data shape: {self.nse_data.shape}")
-        print(f"NFO data shape: {self.nfo_data.shape}")
-        print("NSE and NFO data downloaded successfully.")
+    def _ensure_cookies(self):
+        """Ensure NSE cookies are set for API access."""
+        if not self._cookies_set:
+            try:
+                self.session.get("https://www.nseindia.com", timeout=10)
+                self._cookies_set = True
+            except requests.exceptions.RequestException:
+                pass
 
-    def _fetch_master_data(self, url):
-        try:
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.text.splitlines()
-            columns = ['ScripCode', 'Symbol', 'Name', 'Type']
-            return pd.DataFrame([line.split('|') for line in data], columns=columns)
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to download data from {url}: {e}")
-            return pd.DataFrame()
-
-    def symbolsearch(self, symbol, exchange):
-        """Search for a symbol in the specified exchange and return the first match."""
-        df = self.nse_data if exchange.upper() == 'NSE' else self.nfo_data
-        if df is None:
-            print(f"Data for {exchange} not downloaded. Please run download() first.")
-            return None
-        result = df[df['Symbol'].str.contains(symbol, case=False, na=False)]
-        if result.empty:
-            print(f"No matching result found for symbol '{symbol}' in {exchange}.")
-            return None
-        return result.iloc[0]
-
-    def search(self, symbol, exchange, exact_match=False):
-        """Search for symbols in the specified exchange.
+    def search(self, symbol, segment='EQ'):
+        """Search for symbols using the dynamic search API.
 
         Args:
             symbol (str): The symbol or part of the symbol to search for.
-            exchange (str): The exchange to search in ('NSE' or 'NFO').
-            exact_match (bool): If True, performs an exact match. If False, searches for symbols containing the input.
+            segment (str): Market segment:
+                - 'IDX' for indices (NIFTY 50, NIFTY BANK, etc.)
+                - 'EQ' for equities (RELIANCE, TCS, etc.)
+                - 'FO' for futures and options
 
         Returns:
-            pandas.DataFrame: A DataFrame containing all matching symbols.
+            pandas.DataFrame: A DataFrame containing matching symbols with columns:
+                - symbol: Trading symbol
+                - scripcode: Token for historical data
+                - description: Full name/description
+                - type: Instrument type (Index, Equity, Futures, Options)
+                - exchange: Exchange name
         """
-        exchange = exchange.upper()
-        if exchange == 'NSE':
-            df = self.nse_data
-        elif exchange == 'NFO':
-            df = self.nfo_data
+        self._ensure_cookies()
+
+        segment = segment.upper()
+        if segment not in self.SEGMENTS:
+            print(f"Invalid segment '{segment}'. Use 'IDX', 'EQ', or 'FO'.")
+            return pd.DataFrame()
+
+        try:
+            payload = {"symbol": symbol, "segment": segment}
+            response = self.session.post(self.search_url, json=payload, timeout=10)
+            response.raise_for_status()
+            result = response.json()
+
+            if not result.get('status') or not result.get('data'):
+                print(f"No results found for '{symbol}' in segment '{segment}'.")
+                return pd.DataFrame()
+
+            df = pd.DataFrame(result['data'])
+            return df[['symbol', 'scripcode', 'description', 'type', 'exchange']]
+
+        except requests.exceptions.RequestException as e:
+            print(f"Search failed: {e}")
+            return pd.DataFrame()
+
+    def historical(self, symbol, segment='EQ', start=None, end=None, interval='1d'):
+        """Get historical OHLCV data for a symbol.
+
+        Args:
+            symbol (str): The symbol to fetch data for (e.g., 'RELIANCE', 'NIFTY 50').
+            segment (str): Market segment:
+                - 'IDX' for indices
+                - 'EQ' for equities
+                - 'FO' for futures/options
+            start (datetime): Start date for historical data.
+            end (datetime): End date for historical data.
+            interval (str): Data interval ('1m', '3m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M').
+
+        Returns:
+            pandas.DataFrame: Historical OHLCV data indexed by timestamp.
+        """
+        self._ensure_cookies()
+
+        search_results = self.search(symbol, segment)
+        if search_results.empty:
+            return pd.DataFrame()
+
+        # Find exact match or use first result
+        symbol_upper = symbol.upper()
+        exact_match = search_results[search_results['symbol'].str.upper() == symbol_upper]
+
+        if not exact_match.empty:
+            symbol_info = exact_match.iloc[0].to_dict()
         else:
-            print(f"Invalid exchange '{exchange}'. Please choose 'NSE' or 'NFO'.")
-            return pd.DataFrame()
+            # Try matching with -EQ suffix for equities
+            if segment.upper() == 'EQ':
+                eq_match = search_results[search_results['symbol'].str.upper() == f"{symbol_upper}-EQ"]
+                if not eq_match.empty:
+                    symbol_info = eq_match.iloc[0].to_dict()
+                else:
+                    symbol_info = search_results.iloc[0].to_dict()
+            else:
+                symbol_info = search_results.iloc[0].to_dict()
 
-        if df is None:
-            print(f"Data for {exchange} not downloaded. Please run download() first.")
-            return pd.DataFrame()
+        return self._fetch_historical(symbol_info, start, end, interval)
 
-        if exact_match:
-            result = df[df['Symbol'].str.upper() == symbol.upper()]
-        else:
-            result = df[df['Symbol'].str.contains(symbol, case=False, na=False)]
-
-        if result.empty:
-            print(f"No matching result found for symbol '{symbol}' in {exchange}.")
-            return pd.DataFrame()
-
-        return result.reset_index(drop=True)
-
-    def historical(self, symbol="Nifty 50", exchange="NSE", start=None, end=None, interval='1d'):
-        """Get historical data for a symbol."""
-        symbol_info = self.symbolsearch(symbol, exchange)
-        if symbol_info is None:
-            return pd.DataFrame()
-
+    def _fetch_historical(self, symbol_info, start, end, interval):
+        """Internal method to fetch historical data."""
         interval_map = {
-            '1m': ('1', 'I'), '3m': ('3', 'I'), '5m': ('5', 'I'), '10m': ('10', 'I'),
-            '15m': ('15', 'I'), '30m': ('30', 'I'), '1h': ('60', 'I'),
-            '1d': ('1', 'D'), '1w': ('1', 'W'), '1M': ('1', 'M')
+            '1m': (1, 'I'), '5m': (5, 'I'), '10m': (10, 'I'),
+            '15m': (15, 'I'), '30m': (30, 'I'), '1h': (60, 'I'),
+            '1d': (1, 'D'), '1w': (1, 'W'), '1M': (1, 'M')
         }
 
-        time_interval, chart_period = interval_map.get(interval, ('1', 'D'))
+        time_interval, chart_type = interval_map.get(interval, (1, 'D'))
 
         payload = {
-            "exch": "N" if exchange.upper() == "NSE" else "D",
-            "instrType": "C" if exchange.upper() == "NSE" else "D",
-            "scripCode": int(symbol_info['ScripCode']),
-            "ulToken": int(symbol_info['ScripCode']),
+            "token": str(symbol_info['scripcode']),
             "fromDate": int(start.timestamp()) if start else 0,
             "toDate": int(end.timestamp()) if end else int(time.time()),
-            "timeInterval": time_interval,
-            "chartPeriod": chart_period,
-            "chartStart": 0
+            "symbol": symbol_info['symbol'],
+            "symbolType": symbol_info['type'],
+            "chartType": chart_type,
+            "timeInterval": time_interval
         }
 
         try:
-            # Ensure necessary cookies are set
-            self.session.get("https://www.nseindia.com", timeout=5)
-            response = self.session.post(self.historical_url, data=json.dumps(payload), timeout=10)
+            response = self.session.post(self.historical_url, json=payload, timeout=10)
             response.raise_for_status()
-            data = response.json()
+            result = response.json()
 
-            if not data:
+            if not result.get('status') or not result.get('data'):
                 print("No data received from the API.")
                 return pd.DataFrame()
 
-            return process_historical_data(data, interval)
+            return process_historical_data(result['data'], interval)
 
         except requests.exceptions.RequestException as e:
             print(f"An error occurred while fetching historical data: {e}")
             return pd.DataFrame()
 
+    def historical_direct(self, token, symbol, symbol_type, start=None, end=None, interval='1d'):
+        """Get historical data directly using token, symbol and symbolType.
+
+        Use this method when you already know the token.
+
+        Args:
+            token (str): The token/scripcode for the symbol.
+            symbol (str): The symbol name.
+            symbol_type (str): The type of symbol ('Index', 'Equity', 'Futures', 'Options').
+            start (datetime): Start date for historical data.
+            end (datetime): End date for historical data.
+            interval (str): Data interval ('1m', '5m', '1d', etc.).
+
+        Returns:
+            pandas.DataFrame: Historical OHLCV data.
+        """
+        symbol_info = {
+            'scripcode': token,
+            'symbol': symbol,
+            'type': symbol_type
+        }
+        self._ensure_cookies()
+        return self._fetch_historical(symbol_info, start, end, interval)
+
     def timeframes(self):
         """Return supported timeframes."""
-        return ['1m', '3m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
+        return ['1m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
+
+    def segments(self):
+        """Return supported market segments."""
+        return list(self.SEGMENTS.keys())

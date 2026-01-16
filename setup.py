@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='openchart',
-    version='0.1.0',
+    version='0.2.0',
     description='A Python library to download intraday and EOD historical data from NSE India',
     author='Rajandran R',
     author_email='rajandran@marketcalls.in',

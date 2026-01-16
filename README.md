@@ -1,4 +1,4 @@
-# Download market data from NSEIndia's API
+# OpenChart - NSE India Market Data
 
 <table border=1 cellpadding=10><tr><td>
 
@@ -6,198 +6,338 @@
 
 ---
 
-openchart is **not** affiliated, endorsed, or vetted by NSEIndia. It's
-an open-source tool that uses NseIndia's publicly available APIs, and is
+OpenChart is **not** affiliated, endorsed, or vetted by NSE India. It's
+an open-source tool that uses NSE India's publicly available APIs, and is
 intended for research and educational purposes.
 
+</td></tr></table>
 
-# OpenChart
+## Overview
 
-OpenChart is a Python library for downloading intraday and EOD (End of Day) historical data from the NSE (National Stock Exchange of India) and NFO (NSE Futures and Options) exchanges.
+OpenChart is a Python library for downloading intraday and EOD (End of Day) historical data from NSE India's charting platform. It supports indices, equities, futures, and options.
 
 ## Features
 
-- Download NSE and NFO master data.
-- Search for symbols in NSE and NFO exchanges.
-- Fetch historical data for equities and derivatives.
-- Supports various timeframes: `1m`, `3m`, `5m`, `10m`, `15m`, `30m`, `1h`, `1d`, `1w`, `1M`.
+- Search for symbols across indices, equities, and F&O segments
+- Fetch historical OHLCV data
+- Support for multiple timeframes from 1-minute to monthly
+- No authentication required
 
 ## Installation
-
-You can install the library directly from the GitHub repository:
 
 ```bash
 pip install openchart
 ```
 
-or from the GitHub repository:
+Or install from GitHub:
 
 ```bash
 pip install git+https://github.com/marketcalls/openchart.git
 ```
 
-## Usage
-
-### Import the Library
+## Quick Start
 
 ```python
 from openchart import NSEData
-```
+from datetime import datetime, timedelta
 
-### Initialize the NSEData Class
-
-```python
 nse = NSEData()
-```
+end = datetime.now()
+start = end - timedelta(days=30)
 
-### Download Master Data
-
-Before fetching historical data or searching for symbols, download the master data:
-
-```python
-nse.download()
-```
-
-
-### Fetch Historical Data
-
-To fetch historical data for a symbol, use the `historical` method. **Always specify `start` and `end` dates**. You can use `datetime` and `timedelta` to get data from 30 days back.
-
-#### Intraday Data
-
-Fetch intraday data for **TCS** with a 5-minute interval, from 30 days ago until today:
-
-```python
-import datetime
-
-end_date = datetime.datetime.now()
-start_date = end_date - datetime.timedelta(days=30)
-
-data = nse.historical(
-    symbol='TCS',
-    exchange='NSE',
-    start=start_date,
-    end=end_date,
-    interval='5m'
-)
+# Get NIFTY 50 daily data
+data = nse.historical('NIFTY 50', 'IDX', start, end, '1d')
 print(data)
 ```
 
-#### EOD Data
+## Market Segments
 
-Fetch end-of-day data for **Nifty 50**, from 365 days ago until today:
+| Segment | Description | Examples |
+|---------|-------------|----------|
+| `IDX` | Indices | NIFTY 50, NIFTY BANK, NIFTY IT |
+| `EQ` | Equities | RELIANCE-EQ, INFY-EQ, TCS-EQ |
+| `FO` | Futures & Options | NIFTY26JANFUT, BANKNIFTY26JANFUT |
 
-```python
-import datetime
+## Supported Timeframes
 
-end_date = datetime.datetime.now()
-start_date = end_date - datetime.timedelta(days=365)
+| Timeframe | Description |
+|-----------|-------------|
+| `1m` | 1 minute |
+| `5m` | 5 minutes |
+| `10m` | 10 minutes |
+| `15m` | 15 minutes |
+| `30m` | 30 minutes |
+| `1h` | 1 hour |
+| `1d` | 1 day |
+| `1w` | 1 week |
+| `1M` | 1 month |
 
-data = nse.historical(
-    symbol='Nifty 50',
-    exchange='NSE',
-    start=start_date,
-    end=end_date,
-    interval='1d'
-)
-print(data)
-```
-
-#### NFO Data
-
-Fetch historical data for a futures contract of 15min data, from 30 days ago until today:
-
-```python
-import datetime
-
-end_date = datetime.datetime.now()
-start_date = end_date - datetime.timedelta(days=30)
-
-data = nse.historical(
-    symbol='BANKNIFTY24OCTFUT',
-    exchange='NFO',
-    start=start_date,
-    end=end_date,
-    interval='15m'
-)
-print(data)
-```
+## Usage Examples
 
 ### Search for Symbols
 
-#### NSE Exchange
-
-Search for symbols like **Nifty 50**, **TCS**, **RELIANCE** in the NSE exchange.
-
 ```python
-symbols = nse.search('RELIANCE', exchange='NSE')
-print(symbols)
+from openchart import NSEData
+
+nse = NSEData()
+
+# Search indices
+indices = nse.search('NIFTY', 'IDX')
+print(indices)
 ```
 
-#### NFO Exchange
-
-Search for symbols like **NIFTY24OCTFUT**, **BANKNIFTY24OCTFUT**, **NIFTY24N2124800CE**, **NIFTY24N2124800PE** in the NFO exchange.
-
-- **NIFTY24N2124800CE** corresponds to **NIFTY 21 Nov 2024 CE 24800.00**.
-- **NIFTY24N2124800PE** corresponds to **NIFTY 21 Nov 2024 PE 24800.00**.
-
-```python
-symbols = nse.search('24OCTFUT', exchange='NFO')
-print(symbols)
+Output:
+```
+             symbol scripcode       description   type exchange
+0          NIFTY 50     26000          NIFTY 50  Index      NSE
+1          NIFTY IT     26001          NIFTY IT  Index      NSE
+2     NIFTY NEXT 50     26002     NIFTY NEXT 50  Index      NSE
+3        NIFTY BANK     26004        NIFTY BANK  Index      NSE
+4  NIFTY MIDCAP 100     26005  NIFTY MIDCAP 100  Index      NSE
 ```
 
-Output
-```bash
-    ScripCode              Symbol                    Name Type
-0       35006   BANKNIFTY24OCTFUT   BANKNIFTY 30 Oct 2024    1
-1       35007  NIFTYNXT5024OCTFUT  NIFTYNXT50 25 Oct 2024    1
-2       35012    FINNIFTY24OCTFUT    FINNIFTY 29 Oct 2024    1
-3       35239  MIDCPNIFTY24OCTFUT  MIDCPNIFTY 28 Oct 2024    1
-4       35382       NIFTY24OCTFUT       NIFTY 31 Oct 2024    1
-..        ...                 ...                     ...  ...
-179     48598         UPL24OCTFUT         UPL 31 Oct 2024    3
-180     48601        VEDL24OCTFUT        VEDL 31 Oct 2024    3
-181     48602      VOLTAS24OCTFUT      VOLTAS 31 Oct 2024    3
-182     48603       WIPRO24OCTFUT       WIPRO 31 Oct 2024    3
-183     48604   ZYDUSLIFE24OCTFUT   ZYDUSLIFE 31 Oct 2024    3
-
-[184 rows x 4 columns]
-
+```python
+# Search equities
+equities = nse.search('RELIANCE', 'EQ')
+print(equities)
 ```
 
-#### Exact Match Search
-
-If you want to perform an exact match search, you can set `exact_match=True`.
-
-```python
-symbol_info = nse.search('BANKNIFTY24OCTFUT', exchange='NFO', exact_match=True)
-print(symbol_info)
+Output:
+```
+        symbol scripcode                description    type exchange
+0      RCOM-BE     13188  RELIANCE COMMUNICATIONS L  Equity      NSE
+1  RELCHEMQ-EQ      9652  RELIANCE CHEMOTEX IND LTD  Equity      NSE
+2  RELIANCE-EQ      2885    RELIANCE INDUSTRIES LTD  Equity      NSE
+3      RHFL-BZ    759204  RELIANCE HOME FINANCE LTD  Equity      NSE
+4      RIIL-EQ      2912  RELIANCE INDUSTRIAL INFRA  Equity      NSE
+5    RPOWER-EQ     15259        RELIANCE POWER LTD.  Equity      NSE
 ```
 
-### Supported Timeframes
+```python
+# Search futures & options
+fo = nse.search('NIFTY', 'FO')
+print(fo)
+```
+
+Output:
+```
+               symbol scripcode             description     type exchange
+0       NIFTY26FEBFUT     59182       NIFTY 24 FEB 2026  Futures      NSE
+1       NIFTY26JANFUT     49229       NIFTY 27 JAN 2026  Futures      NSE
+2       NIFTY26MARFUT     51714       NIFTY 30 MAR 2026  Futures      NSE
+3  NIFTYNXT5026FEBFUT     59187  NIFTYNXT50 24 FEB 2026  Futures      NSE
+4  NIFTYNXT5026JANFUT     49234  NIFTYNXT50 27 JAN 2026  Futures      NSE
+...
+6   NIFTY2612020400CE     38639  NIFTY 20 JAN 2026 CE 20400.00  Options      NSE
+7   NIFTY2612020400PE     38640  NIFTY 20 JAN 2026 PE 20400.00  Options      NSE
+```
+
+### Fetch Historical Data
+
+#### Index Data (NIFTY 50)
 
 ```python
+from openchart import NSEData
+from datetime import datetime, timedelta
+
+nse = NSEData()
+end = datetime.now()
+start = end - timedelta(days=30)
+
+# Daily data
+data = nse.historical('NIFTY 50', 'IDX', start, end, '1d')
+print(data)
+```
+
+Output:
+```
+                Open      High       Low     Close     Volume
+Timestamp
+2025-12-18  25764.70  25902.35  25726.30  25815.55  197553755
+2025-12-19  25911.50  25993.35  25880.45  25966.40  382927284
+2025-12-22  26055.85  26180.70  26047.80  26172.40  252990050
+...
+```
+
+#### Equity Data (RELIANCE)
+
+```python
+# Daily data for RELIANCE
+data = nse.historical('RELIANCE-EQ', 'EQ', start, end, '1d')
+print(data)
+```
+
+Output:
+```
+              Open    High     Low   Close    Volume
+Timestamp
+2026-01-09  1465.0  1479.9  1465.0  1475.3   8335311
+2026-01-12  1475.3  1485.3  1451.0  1484.0   8877273
+2026-01-13  1485.0  1485.8  1444.7  1456.9  13498784
+2026-01-14  1444.0  1467.0  1440.2  1458.8   8320926
+2026-01-16  1458.8  1480.0  1455.3  1455.8  10959650
+```
+
+#### Equity Data (INFY)
+
+```python
+# Daily data for INFOSYS
+data = nse.historical('INFY-EQ', 'EQ', start, end, '1d')
+print(data)
+```
+
+Output:
+```
+              Open    High     Low   Close    Volume
+Timestamp
+2026-01-09  1610.0  1631.3  1607.0  1616.9   6816214
+2026-01-12  1610.1  1613.3  1592.6  1597.6   6984534
+2026-01-13  1618.0  1618.0  1586.4  1600.0   8080368
+2026-01-14  1588.0  1617.0  1583.1  1599.8   7554679
+2026-01-16  1663.7  1693.0  1653.4  1686.3  14395786
+```
+
+#### Futures Data
+
+```python
+# NIFTY Futures
+data = nse.historical('NIFTY26JANFUT', 'FO', start, end, '1d')
+print(data)
+```
+
+Output:
+```
+               Open     High      Low    Close   Volume
+Timestamp
+2026-01-09  25966.0  26031.6  25725.0  25810.8  5830435
+2026-01-12  25770.0  25899.0  25573.2  25876.0   121833
+2026-01-13  25911.0  25934.8  25661.1  25790.8    87482
+2026-01-14  25750.1  25850.0  25670.0  25719.0    70661
+2026-01-16  25784.0  25958.0  25752.0  25787.0  4309695
+```
+
+```python
+# BANKNIFTY Futures
+data = nse.historical('BANKNIFTY26JANFUT', 'FO', start, end, '1d')
+print(data)
+```
+
+Output:
+```
+               Open     High      Low    Close  Volume
+Timestamp
+2026-01-09  59890.0  59930.4  59441.0  59525.0  871110
+2026-01-12  59600.0  59812.6  59127.6  59730.4   31441
+2026-01-13  59880.0  59930.0  59450.0  59755.2   24419
+2026-01-14  59690.0  59950.0  59580.2  59780.6   20723
+2026-01-16  59833.0  60280.0  59800.0  60085.2  674130
+```
+
+#### Intraday Data
+
+```python
+# 5-minute data
+start_intra = end - timedelta(days=5)
+data = nse.historical('NIFTY 50', 'IDX', start_intra, end, '5m')
+print(data)
+```
+
+Output:
+```
+                         Open      High       Low     Close  Volume
+Timestamp
+2026-01-14 15:09:59  25686.25  25694.10  25655.05  25673.10       0
+2026-01-14 15:14:59  25673.45  25676.40  25650.80  25652.85       0
+2026-01-14 15:19:59  25655.25  25662.00  25648.30  25660.15       0
+2026-01-14 15:24:59  25660.75  25675.95  25654.85  25675.55       0
+2026-01-14 15:29:59  25675.80  25677.40  25662.60  25669.10       0
+```
+
+### Direct Historical Access
+
+If you already know the token (scripcode), you can fetch data directly:
+
+```python
+# Using historical_direct with known token
+data = nse.historical_direct(
+    token='26000',
+    symbol='NIFTY 50',
+    symbol_type='Index',
+    start=start,
+    end=end,
+    interval='1d'
+)
+```
+
+### Utility Methods
+
+```python
+# Get supported timeframes
 print(nse.timeframes())
-# Output: ['1m', '3m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
+# Output: ['1m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
+
+# Get supported segments
+print(nse.segments())
+# Output: ['IDX', 'EQ', 'FO']
 ```
 
-## Functions
+## API Reference
 
-- `download()`: Downloads NSE and NFO master data.
-- `search(symbol, exchange, exact_match=False)`: Searches for symbols in the specified exchange (`'NSE'` or `'NFO'`).
-  - Returns a pandas DataFrame containing all matching symbols.
-- `symbolsearch(symbol, exchange)`: Searches for a symbol and returns the first match.
-  - Used internally by the `historical` method.
-- `historical(symbol, exchange, start, end, interval='1d')`: Fetches historical data for a symbol.
-  - Uses the `symbolsearch` method to find the symbol, which returns the first match.
-  - **Always specify `start` and `end` dates when fetching data**.
-- `timeframes()`: Returns a list of supported timeframes.
+### `NSEData()`
+
+Initialize the NSE data client.
+
+### `search(symbol, segment='EQ')`
+
+Search for symbols in a market segment.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | str | Symbol or partial symbol to search |
+| `segment` | str | Market segment: 'IDX', 'EQ', or 'FO' |
+
+**Returns:** pandas DataFrame with columns: `symbol`, `scripcode`, `description`, `type`, `exchange`
+
+### `historical(symbol, segment='EQ', start=None, end=None, interval='1d')`
+
+Fetch historical OHLCV data for a symbol.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | str | Symbol to fetch data for |
+| `segment` | str | Market segment: 'IDX', 'EQ', or 'FO' |
+| `start` | datetime | Start date |
+| `end` | datetime | End date |
+| `interval` | str | Data interval (see supported timeframes) |
+
+**Returns:** pandas DataFrame with OHLCV data indexed by timestamp
+
+### `historical_direct(token, symbol, symbol_type, start=None, end=None, interval='1d')`
+
+Fetch historical data using known token.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `token` | str | The scripcode/token for the symbol |
+| `symbol` | str | Symbol name |
+| `symbol_type` | str | Type: 'Index', 'Equity', 'Futures', 'Options' |
+| `start` | datetime | Start date |
+| `end` | datetime | End date |
+| `interval` | str | Data interval |
+
+### `timeframes()`
+
+Returns list of supported timeframes.
+
+### `segments()`
+
+Returns list of supported market segments.
 
 ## Notes
 
-- Ensure that you have a stable internet connection.
-- The `historical` method uses `symbolsearch`, which returns the first matching symbol. If multiple symbols match your query, consider using an exact symbol name or modifying the `historical` method to accept a symbol code directly.
-- **When fetching historical data, always specify `start` and `end` dates. You can use `datetime` and `timedelta` to calculate these dates.**
+- Ensure you have a stable internet connection
+- Intraday data is filtered to market hours (up to 15:29:59)
+- Historical data availability depends on NSE's servers
 
 ## License
 
@@ -207,6 +347,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
-## Contact
+## Author
 
-For any questions or support, please open an issue on the GitHub repository 
+Rajandran R
