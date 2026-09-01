@@ -33,7 +33,7 @@ class NSEData:
         """Ensure NSE cookies are set for API access."""
         if not self._cookies_set:
             try:
-                self.session.get("https://www.nseindia.com", timeout=10)
+                self.session.get("https://charting.nseindia.com", timeout=10)
                 self._cookies_set = True
             except requests.exceptions.RequestException:
                 pass
@@ -65,7 +65,7 @@ class NSEData:
 
         try:
             payload = {"symbol": symbol, "segment": segment}
-            response = self.session.post(self.search_url, json=payload, timeout=10)
+            response = self.session.get(self.search_url, params=payload, timeout=10)
             response.raise_for_status()
             result = response.json()
 
@@ -142,7 +142,7 @@ class NSEData:
         }
 
         try:
-            response = self.session.post(self.historical_url, json=payload, timeout=10)
+            response = self.session.get(self.historical_url, params=payload, timeout=10)
             response.raise_for_status()
             result = response.json()
 
