@@ -29,10 +29,10 @@ OpenChart is a Python library for downloading intraday and EOD (End of Day) hist
 pip install openchart
 ```
 
-Or install from GitHub:
+Or install from this fork (includes live NSE API fixes - `GET` + `charting.nseindia.com`):
 
 ```bash
-pip install git+https://github.com/marketcalls/openchart.git
+pip install git+https://github.com/unn-Known1/openchart.git
 ```
 
 ## Quick Start

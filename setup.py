@@ -6,7 +6,7 @@ setup(
     description='A Python library to download intraday and EOD historical data from NSE India',
     author='Rajandran R',
     author_email='rajandran@marketcalls.in',
-    url='https://github.com/marketcalls/openchart',
+    url='https://github.com/unn-Known1/openchart',
     packages=find_packages(),
     install_requires=[
         'requests',
