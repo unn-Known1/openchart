@@ -253,6 +253,24 @@ Timestamp
 2026-01-14 15:29:59  25675.80  25677.40  25662.60  25669.10       0
 ```
 
+#### Long-term Daily Data (10 years - e.g., ADANIGREEN)
+
+```python
+from openchart import NSEData
+from datetime import datetime
+
+nse = NSEData()
+start = datetime(2016, 9, 1)  # clamped to listing date
+end = datetime.now()
+
+# ADANIGREEN listed 2018-06-18 - 10yr request returns 2032 rows from listing
+data = nse.historical('ADANIGREEN-EQ', 'EQ', start, end, '1d')
+print(data.head())  # 2018-06-18  30.00  31.50  28.50  31.50
+print(data.tail())  # 2026-09-01  1220.00 1271.20 1217.00 1254.80
+print(f"Rows: {len(data)}")  # 2032
+data.to_csv('ADANIGREEN_10y_1d.csv')
+```
+
 ### Direct Historical Access
 
 If you already know the token (scripcode), you can fetch data directly:
@@ -336,8 +354,9 @@ Returns list of supported market segments.
 ## Notes
 
 - Ensure you have a stable internet connection
-- Intraday data is filtered to market hours (up to 15:29:59)
-- Historical data availability depends on NSE's servers
+- Intraday data is filtered to market hours (up to 15:29:59) - see `openchart/utils.py:32`
+- Historical data availability depends on NSE's servers **and listing date**: e.g., `ADANIGREEN-EQ` listed `2018-06-18`, so a 10-year `1d` request (`2016-09-01` to `2026-09-01`) returns `2032` rows from `2018-06-18` (verified live), not a full 10 calendar years
+- `start`/`end` are `datetime` objects converted to UNIX timestamps (`openchart/core.py:136`); if omitted, defaults to epoch → now
 
 ## License
 
