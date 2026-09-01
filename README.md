@@ -63,6 +63,7 @@ print(data)
 | Timeframe | Description |
 |-----------|-------------|
 | `1m` | 1 minute |
+| `3m` | 3 minutes |
 | `5m` | 5 minutes |
 | `10m` | 10 minutes |
 | `15m` | 15 minutes |
@@ -292,7 +293,7 @@ data = nse.historical_direct(
 ```python
 # Get supported timeframes
 print(nse.timeframes())
-# Output: ['1m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
+# Output: ['1m', '3m', '5m', '10m', '15m', '30m', '1h', '1d', '1w', '1M']
 
 # Get supported segments
 print(nse.segments())
@@ -354,9 +355,12 @@ Returns list of supported market segments.
 ## Notes
 
 - Ensure you have a stable internet connection
-- Intraday data is filtered to market hours (up to 15:29:59) - see `openchart/utils.py:32`
-- Historical data availability depends on NSE's servers **and listing date**: e.g., `ADANIGREEN-EQ` listed `2018-06-18`, so a 10-year `1d` request (`2016-09-01` to `2026-09-01`) returns `2032` rows from `2018-06-18` (verified live), not a full 10 calendar years
-- `start`/`end` are `datetime` objects converted to UNIX timestamps (`openchart/core.py:136`); if omitted, defaults to epoch → now
+- Intraday data is filtered to market hours (`09:15` to `15:30`) - see `openchart/utils.py:108`; indices have `Volume 0` on intraday by NSE design
+- Historical data availability depends on NSE's servers **and listing date**: e.g., `ADANIGREEN-EQ` listed `2018-06-18`, so a 10-year `1d` request (`2016-09-01` to `2026-09-01`) returns `2031` rows from `2018-06-18` (verified live), not a full 10 calendar years
+- `start`/`end` are `datetime` objects converted to UNIX timestamps (`openchart/core.py:76`); if omitted, defaults to epoch → now. Raises `ValueError` if `start > end` or `TypeError` for non-datetime
+- `interval` is validated: invalid values raise `InvalidIntervalError` (e.g., `'2m'`), includes `3m` (see `openchart/core.py:22`). Large intraday ranges (>180 days) warn about possible truncation
+- Errors use `warnings` + `logging` + custom exceptions (`InvalidIntervalError`, `InvalidSegmentError`, `SymbolNotFoundError`) instead of silent `print`
+- Use as context manager: `with NSEData() as nse: ...` or `nse.close()`; `timeout` and `max_retries` configurable via `NSEData(timeout=10, max_retries=3)`
 
 ## License
 
